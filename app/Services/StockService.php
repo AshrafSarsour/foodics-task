@@ -9,37 +9,46 @@ use Illuminate\Support\Facades\Log;
 
 class StockService
 {
-    private const LOW_STOCK_THRESHOLD = 50;
+    private const LOW_STOCK_THRESHOLD_PERCENT = 50; // we can make this as a config value
 
     public function updateStock(Collection $products): void
     {
-        foreach ($products as $product) {
-            foreach ($product->ingredients as $ingredient) {
-                $consumed = $ingredient->pivot->quantity * $product->pivot->quantity; 
-               
-                Log::info("Consuming {$consumed} grams of {$ingredient->name}.");
-    
-                $ingredient->stock -= $consumed;
-                $ingredient->save();
-    
-                if ($this->hasReachedLowStockThreshold($ingredient)) {
-                    $this->notifyLowStock($ingredient);
-                }
-            }
+        $products->each(function ($product) {
+            $product->ingredients->each(function ($ingredient) use ($product) {
+                $this->processIngredientConsumption($ingredient, $product->pivot->quantity);
+            });
+        });
+    }
+
+    /**
+     * Process the stock consumption for a single ingredient.
+     *
+     * @param Ingredient $ingredient
+     * @param int $productQuantity
+     * @return void
+     */
+    private function processIngredientConsumption(Ingredient $ingredient, int $productQuantity): void
+    {
+        // to avoid using flags, we can calculate the low stock threshold
+        $currentStock = $ingredient->stock;
+        $lowStockThreshold = $ingredient->initial_stock * (self::LOW_STOCK_THRESHOLD_PERCENT / 100);
+        $consumedQuantity = $ingredient->pivot->quantity * $productQuantity;
+
+        Log::info("Consuming {$consumedQuantity} grams of {$ingredient->name}.");
+
+        $ingredient->decrement('stock', $consumedQuantity);
+
+        $newStock = $ingredient->stock;
+
+        if ($currentStock >= $lowStockThreshold && $newStock < $lowStockThreshold) {
+            $this->sendLowStockNotification($ingredient);
         }
     }
 
-    private function notifyLowStock(Ingredient $ingredient): void
+    private function sendLowStockNotification(Ingredient $ingredient): void
     {
-        if (!$ingredient->low_stock) {
-            $ingredient->notify(new LowStockNotification());
-            $ingredient->low_stock = true;
-            $ingredient->save();
-        }
-    }
+        Log::info("sendLowStockNotification Processed  {$ingredient->name}.");
 
-    private function hasReachedLowStockThreshold(Ingredient $ingredient): bool
-    {
-        return $ingredient->stock <= ($ingredient->initial_stock * (SELF::LOW_STOCK_THRESHOLD / 100));
+        $ingredient->notify(new LowStockNotification());
     }
 }

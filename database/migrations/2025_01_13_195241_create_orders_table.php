@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
+            // its pointless to have only id and timestamps but for the sake of the task
             $table->timestamps();
         });
     }

@@ -11,7 +11,7 @@ class Ingredient extends Model
     use HasFactory,Notifiable;
     // Notifiable here is a trait that is used to send notifications for the ingredient model.
 
-    protected $fillable = ['name', 'stock', 'initial_stock','low_stock'];
+    protected $fillable = ['name', 'stock', 'initial_stock'];
 
     public function products()
     {

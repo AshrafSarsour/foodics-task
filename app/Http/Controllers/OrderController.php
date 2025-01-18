@@ -20,8 +20,11 @@ class OrderController extends Controller
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|integer|min:1',
         ]);
-
-        $order = $this->orderService->processOrder($validated);
+        try {
+          $order = $this->orderService->processOrder($validated);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
 
         return response()->json(['message' => 'Order processed successfully!', 'order' => $order]);
     }
